@@ -1,0 +1,7 @@
+deepface==0.0.93
+Flask==3.1.0
+mediapipe==0.10.30
+opencv-python==4.10.0.84
+requests==2.32.3
+tf_keras==2.18.0
+numpy==1.26.4
