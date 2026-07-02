@@ -7,3 +7,4 @@ requests==2.32.3
 tf_keras==2.18.0
 numpy==1.26.4
 gunicorn==21.2.0
+psutil==5.9.5
