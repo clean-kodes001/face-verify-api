@@ -8,12 +8,22 @@ import os
 import tempfile
 
 app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests
+CORS(app)
+
+# Pre-load the model to avoid downloading on first request
+print("Loading DeepFace model...")
+try:
+    # This pre-loads the model
+    DeepFace.build_model(model_name='Facenet')
+    print("✅ Model loaded successfully!")
+except Exception as e:
+    print(f"⚠️ Model loading issue: {e}")
+    print("Model will be downloaded on first request")
 
 def decode_base64_image(base64_string):
     """Decode base64 image to OpenCV format"""
     try:
-        # Handle data URL format: data:image/jpeg;base64,xxxxx
+        # Remove data URL prefix if present
         if ',' in base64_string and 'base64' in base64_string.split(',')[0]:
             base64_string = base64_string.split(',')[1]
         
@@ -56,25 +66,35 @@ def verify_face():
             path2 = f2.name
         
         try:
-            # Perform face verification
-            result = DeepFace.verify(img1_path=path1, img2_path=path2, 
-                                   model_name='Facenet',  # Lightweight model
-                                   enforce_detection=False)  # Don't fail if face not detected
+            # Perform face verification with lighter model
+            # Facenet is smaller and faster than the default
+            result = DeepFace.verify(
+                img1_path=path1, 
+                img2_path=path2,
+                model_name='Facenet',  # Lighter model
+                enforce_detection=False,  # Don't fail if no face detected
+                detector_backend='opencv'  # Faster detection
+            )
             
             # Calculate confidence (0-100%)
+            # Lower distance = more similar
             confidence = (1 - result['distance']) * 100
             
             return jsonify({
-                'verified': result['verified'],
+                'verified': bool(result['verified']),
                 'confidence': round(confidence, 2),
                 'distance': round(result['distance'], 4),
-                'message': 'Faces match!' if result['verified'] else 'Faces do not match'
+                'message': 'Faces match!' if result['verified'] else 'Faces do not match',
+                'model': 'Facenet'
             }), 200
             
         finally:
             # Clean up temp files
-            os.unlink(path1)
-            os.unlink(path2)
+            try:
+                os.unlink(path1)
+                os.unlink(path2)
+            except:
+                pass
             
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
@@ -85,6 +105,7 @@ def verify_face():
 def home():
     return jsonify({
         'service': 'Face Verification API',
+        'version': '1.0.0',
         'endpoints': {
             '/verify-face': 'POST - Send two base64 images',
             '/health': 'GET - Check service status'
